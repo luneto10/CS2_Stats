@@ -1,14 +1,21 @@
 from collections import defaultdict
 from demoparser2 import DemoParser
 from functools import lru_cache
+from pprint import pprint
 import numpy as np
 from typing import Sequence, Union, Tuple
 import pandas as pd
 
 from utils.interface.parserInterface import ParserInterface
+from utils.interface.statsCalculatorInterface import StatsCalculatorInterface
+from utils.platform_strategy.faceitPlatform import FaceitPlatform
+from utils.platform_strategy.gcPlatform import GcPlatform
+
 
 class StatsCalculator:
-    def __init__(self, parser: ParserInterface) -> None:
+    def __init__(
+        self, parser: ParserInterface, platform: StatsCalculatorInterface
+    ) -> None:
         """
         Initialize the FinalScoreCalculator with a parser instance.
 
@@ -18,6 +25,7 @@ class StatsCalculator:
             The parser instance used to retrieve event and tick data.
         """
         self.parser = parser
+        self.platform = platform
 
     @lru_cache
     def __get_tick_for_round(self, round_info: Union[str, int]) -> Tuple[int, int]:
@@ -43,21 +51,7 @@ class StatsCalculator:
             If `round_info` is invalid or exceeds the maximum round.
         """
         # Determine the tick based on round_info
-        last_tick = self.parser.parse_event("round_end")["tick"].max()
-
-        events = pd.concat(
-            [
-                self.parser.parse_event("round_officially_ended")[
-                    "tick"
-                ].drop_duplicates(),
-                pd.Series([last_tick]),
-            ],
-            ignore_index=True,
-        )
-
-        events.index = range(1, len(events) + 1)
-
-        max_round = len(events)
+        events, max_round = self.platform.get_ticks()
 
         special_rounds = {"half_time": 12, "final": max_round}
 
@@ -86,14 +80,7 @@ class StatsCalculator:
         int
             The total number of rounds played.
         """
-        return (
-            len(
-                self.parser.parse_event("round_officially_ended")[
-                    "tick"
-                ].drop_duplicates()
-            )
-            + 1
-        )
+        return self.platform.get_total_rounds()
 
     def __calculate_metrics(self, df: pd.DataFrame, actual_rounds: int) -> pd.DataFrame:
         """
@@ -223,8 +210,8 @@ class StatsCalculator:
     def __get_round_interval_ticks(self):
         result = []
         max_round = self.get_total_rounds() + 1
-        df_start = parser.parse_event("round_start")
-        df_end = parser.parse_event("round_end")["tick"]
+        df_start = self.parser.parse_event("round_start")
+        df_end = self.parser.parse_event("round_end")["tick"]
         for i in range(1, max_round):
             round_start = df_start.query(f"round == {i}")["tick"].max()
             round_end = df_end[i]
@@ -279,11 +266,11 @@ class StatsCalculator:
 
 if __name__ == "__main__":
     from pprint import pprint
-    
+
     base_path = "../../demos"
     parser = DemoParser(
         "/Users/luneto10/Documents/Exploratory/CS2_Stats/demos/gc/pulin-gc.dem"
     )
-    
-    scoreboard = StatsCalculator(parser)
-    pprint(scoreboard.get_scoreboard(round_info=3)[2])
+    stratefu = GcPlatform(parser)
+    scoreboard = StatsCalculator(parser, stratefu)
+    # pprint(scoreboard.get_scoreboard(round_info=3)[2])
