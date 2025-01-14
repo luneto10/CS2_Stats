@@ -5,8 +5,7 @@ import numpy as np
 from typing import Sequence, Union, Tuple
 import pandas as pd
 
-from interface.parserInterface import ParserInterface
-
+from utils.interface.parserInterface import ParserInterface
 
 class StatsCalculator:
     def __init__(self, parser: ParserInterface) -> None:
@@ -21,7 +20,7 @@ class StatsCalculator:
         self.parser = parser
 
     @lru_cache
-    def __get_tick_for_round(self, round_info: Union[str, int]) -> int:
+    def __get_tick_for_round(self, round_info: Union[str, int]) -> Tuple[int, int]:
         """
         Retrieve the tick corresponding to the specified round.
 
@@ -283,8 +282,8 @@ if __name__ == "__main__":
     
     base_path = "../../demos"
     parser = DemoParser(
-        f"/Users/luneto10/Documents/Exploratory/CS2_Stats/demos/faceit/anubisFaceit.dem"
+        "/Users/luneto10/Documents/Exploratory/CS2_Stats/demos/gc/pulin-gc.dem"
     )
     
     scoreboard = StatsCalculator(parser)
-    pprint(scoreboard.get_first_kills())
+    pprint(scoreboard.get_scoreboard(round_info=3)[2])
