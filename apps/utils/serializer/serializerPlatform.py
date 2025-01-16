@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Sequence, Union, Tuple
+from typing import Tuple
 import pandas as pd
 
-class StatsCalculatorInterface(ABC):
+
+class SerializerPlatform(ABC):
     @abstractmethod
     def get_total_rounds(self) -> int:
         """
@@ -15,7 +16,6 @@ class StatsCalculatorInterface(ABC):
         """
         pass
 
-    
     @abstractmethod
     def get_ticks(self) -> Tuple[pd.Series, int]:
         """

@@ -1,13 +1,13 @@
 from demoparser2 import DemoParser
-from utils.interface.statsCalculatorInterface import StatsCalculatorInterface
-from typing import Sequence, Union, Tuple
+from utils.serializer.serializerPlatform import SerializerPlatform
+from typing import Tuple
 import pandas as pd
 
 
-class GcPlatform(StatsCalculatorInterface):
-    def __init__(self, parser: DemoParser) -> None:    
+class GcPlatform(SerializerPlatform):
+    def __init__(self, parser: DemoParser) -> None:
         self.parser = parser
-    
+
     def get_total_rounds(self) -> int:
         """
         Retrieve the total number of rounds played for the given platform.
@@ -22,9 +22,14 @@ class GcPlatform(StatsCalculatorInterface):
         int
             Total number of rounds.
         """
-        return len(
-            self.parser.parse_event("round_officially_ended")["tick"].drop_duplicates()
-        ) - 1
+        return (
+            len(
+                self.parser.parse_event("round_officially_ended")[
+                    "tick"
+                ].drop_duplicates()
+            )
+            - 1
+        )
 
     def get_ticks(self) -> Tuple[pd.Series, int]:
         """
@@ -46,8 +51,3 @@ class GcPlatform(StatsCalculatorInterface):
         # Get the tick corresponding to `round_info`
         events = self.parser.parse_event("round_end")["tick"]
         return events, len(events) - 1
-
-
-
-        
-    

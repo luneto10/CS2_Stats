@@ -3,18 +3,18 @@ from demoparser2 import DemoParser
 from functools import lru_cache
 from pprint import pprint
 import numpy as np
-from typing import Sequence, Union, Tuple
+from typing import List, Sequence, Union, Tuple
 import pandas as pd
 
 from utils.interface.parserInterface import ParserInterface
-from utils.interface.statsCalculatorInterface import StatsCalculatorInterface
+from utils.serializer.serializerPlatform import SerializerPlatform
 from utils.platform_strategy.faceitPlatform import FaceitPlatform
 from utils.platform_strategy.gcPlatform import GcPlatform
 
 
 class StatsCalculator:
     def __init__(
-        self, parser: ParserInterface, platform: StatsCalculatorInterface
+        self, parser: ParserInterface, platform: SerializerPlatform
     ) -> None:
         """
         Initialize the FinalScoreCalculator with a parser instance.
@@ -24,26 +24,35 @@ class StatsCalculator:
         parser : object
             The parser instance used to retrieve event and tick data.
         """
-        self.parser = parser
-        self.platform = platform
+        self.__parser = parser
+        self.__platform = platform
+        self.total_rounds = self.get_total_rounds()
+        self.__round_intervals  = self.__precompute_round_intervals()
+        
+    def __precompute_round_intervals(self) -> List[Tuple[int, int]]:
+        result = []
+        max_round = self.total_rounds + 1
+        df_start = self.__parser.parse_event("round_start")
+        df_end = self.__parser.parse_event("round_end")["tick"]
+        for i in range(1, max_round):
+            round_start = df_start.query(f"round == {i}")["tick"].max()
+            round_end = df_end[i]
+            result.append((round_start, round_end))
+        return result
 
     @lru_cache
     def __get_tick_for_round(self, round_info: Union[str, int]) -> Tuple[int, int]:
         """
-        Retrieve the tick corresponding to the specified round.
+        Retrieve the ticks for all rounds and the total number of rounds.
 
-        Parameters:
-        -----------
-        round_info : str | int
-            Specifies the round. Can be:
-            - "final": Retrieves the final round tick.
-            - "half_time": Retrieves the halftime round tick (end of round 12).
-            - An integer: Retrieves the tick for the specified round.
+        This method combines the tick data from the "round_officially_ended" and "round_end" events
+        to create a complete list of round ticks. It also calculates the total number of rounds.
 
         Returns:
         --------
-        int
-            The tick for the specified round.
+        Tuple[pd.Series, int]:
+            - A pandas Series containing the ticks for all rounds, indexed starting from 1.
+            - An integer representing the total number of rounds.
 
         Raises:
         -------
@@ -51,9 +60,12 @@ class StatsCalculator:
             If `round_info` is invalid or exceeds the maximum round.
         """
         # Determine the tick based on round_info
-        events, max_round = self.platform.get_ticks()
+        events, max_round = self.__platform.get_ticks()
 
-        special_rounds = {"half_time": 12, "final": max_round}
+        special_rounds = {
+            "half_time": 12, 
+            "final": max_round,
+        }
 
         # Validate and process `round_info`
         if isinstance(round_info, int):
@@ -80,7 +92,7 @@ class StatsCalculator:
         int
             The total number of rounds played.
         """
-        return self.platform.get_total_rounds()
+        return self.__platform.get_total_rounds()
 
     def __calculate_metrics(self, df: pd.DataFrame, actual_rounds: int) -> pd.DataFrame:
         """
@@ -191,7 +203,7 @@ class StatsCalculator:
         ]
 
         # Parse the ticks
-        df = self.parser.parse_ticks(wanted_fields, ticks=[tick])
+        df = self.__parser.parse_ticks(wanted_fields, ticks=[tick])
 
         # Calculate metrics
         df = self.__calculate_metrics(df, actual_rounds)
@@ -207,17 +219,6 @@ class StatsCalculator:
         df_team_1, df_team_2 = self.__split_by_team(df)
         return df_team_1, df_team_2, df
 
-    def __get_round_interval_ticks(self):
-        result = []
-        max_round = self.get_total_rounds() + 1
-        df_start = self.parser.parse_event("round_start")
-        df_end = self.parser.parse_event("round_end")["tick"]
-        for i in range(1, max_round):
-            round_start = df_start.query(f"round == {i}")["tick"].max()
-            round_end = df_end[i]
-            result.append((round_start, round_end))
-        return result
-
     def get_first_kills(self) -> pd.DataFrame:
         """
         Analyze the first kill for each round and return detailed information.
@@ -227,8 +228,8 @@ class StatsCalculator:
         pd.DataFrame:
             DataFrame containing details of the first kill for each round.
         """
-        df = self.parser.parse_event("player_death")
-        round_interval = self.__get_round_interval_ticks()
+        df = self.__parser.parse_event("player_death")
+        round_interval = self.__round_intervals
 
         # Filter valid ticks
         df = df[df["tick"] >= round_interval[0][0]]
@@ -239,7 +240,7 @@ class StatsCalculator:
         )
 
         # Iterate over rounds
-        for round_number in range(self.get_total_rounds()):
+        for round_number in range(self.total_rounds):
             round_df: pd.DataFrame = df[
                 (df["tick"] >= round_interval[round_number][0])
                 & (df["tick"] <= round_interval[round_number][1])
@@ -251,6 +252,7 @@ class StatsCalculator:
             first_kill = round_df.nsmallest(1, "tick")[
                 ["attacker_name", "attacker_steamid", "user_name"]
             ].values[0]
+            
             attacker_id = first_kill[1]
 
             round_first_kill[attacker_id]["rounds"].append(round_number + 1)

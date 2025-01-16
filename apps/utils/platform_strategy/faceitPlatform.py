@@ -1,13 +1,13 @@
 from demoparser2 import DemoParser
-from utils.interface.statsCalculatorInterface import StatsCalculatorInterface
+from utils.serializer.serializerPlatform import SerializerPlatform
 from typing import Sequence, Union, Tuple
 import pandas as pd
 
 
-class FaceitPlatform(StatsCalculatorInterface):
-    def __init__(self, parser: DemoParser) -> None:    
+class FaceitPlatform(SerializerPlatform):
+    def __init__(self, parser: DemoParser) -> None:
         self.parser = parser
-    
+
     def get_total_rounds(self) -> int:
         """
         Retrieve the total number of rounds played for the given platform.
@@ -22,9 +22,14 @@ class FaceitPlatform(StatsCalculatorInterface):
         int
             Total number of rounds.
         """
-        return len(
-            self.parser.parse_event("round_officially_ended")["tick"].drop_duplicates()
-        ) + 1
+        return (
+            len(
+                self.parser.parse_event("round_officially_ended")[
+                    "tick"
+                ].drop_duplicates()
+            )
+            + 1
+        )
 
     def get_ticks(self) -> Tuple[pd.Series, int]:
         """
@@ -46,19 +51,17 @@ class FaceitPlatform(StatsCalculatorInterface):
         - The index of the returned Series starts from 1 to match round numbering conventions.
         """
         last_tick = self.parser.parse_event("round_end")["tick"].max()
-        round_ended = self.parser.parse_event("round_officially_ended").drop_duplicates()
-        
+        round_ended = self.parser.parse_event(
+            "round_officially_ended"
+        ).drop_duplicates()
+
         events = pd.concat(
             [
-                round_ended['tick'],
+                round_ended["tick"],
                 pd.Series([last_tick]),
             ],
             ignore_index=True,
         )
-        
+
         events.index = range(1, len(events) + 1)
         return events, len(events)
-
-
-        
-    

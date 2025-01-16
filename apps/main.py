@@ -1,4 +1,3 @@
-from collections import defaultdict
 from demoparser2 import DemoParser
 import pandas as pd
 from pprint import pprint
@@ -17,10 +16,12 @@ parser = DemoParser(
     )
 stratefu = FaceitPlatform(parser)
 scoreboard = StatsCalculator(parser, stratefu)
-with open("scoreboard.csv", "w") as f:
-    f.write(scoreboard.get_scoreboard()[2].to_csv())
+pprint(scoreboard.get_scoreboard())
+# with open("scoreboard.csv", "w") as f:
+#     # f.write(scoreboard.get_scoreboard()[2].to_csv())
+#     f.write(scoreboard.get_scoreboard().)
     
 
-with pd.option_context("display.max_rows", None, "display.max_columns", None): 
-    with open("rounds.csv", "w") as f:
-        pprint(parser.parse_events(["all"]), f)
+# with pd.option_context("display.max_rows", None, "display.max_columns", None): 
+#     with open("rounds.csv", "w") as f:
+#         pprint(parser.parse_events(["all"]), f)
