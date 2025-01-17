@@ -10,14 +10,8 @@ class GcPlatform(SerializerPlatform):
 
     def get_total_rounds(self) -> int:
         """
-        Retrieve the total number of rounds played for the given platform.
+        Retrieve the total number of rounds played for the GamersClub.
 
-        Parameters:
-        -----------
-        platform : str
-            The platform name (e.g., "gc", "faceit", "mm").
-
-        Returns:
         --------
         int
             Total number of rounds.

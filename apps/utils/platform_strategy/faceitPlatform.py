@@ -10,12 +10,7 @@ class FaceitPlatform(SerializerPlatform):
 
     def get_total_rounds(self) -> int:
         """
-        Retrieve the total number of rounds played for the given platform.
-
-        Parameters:
-        -----------
-        platform : str
-            The platform name (e.g., "gc", "faceit", "mm").
+        Retrieve the total number of rounds played for the Faceit.
 
         Returns:
         --------
