@@ -25,9 +25,9 @@ stratefu = GcPlatform(parser)
 scoreboard = StatsCalculator(parser, stratefu)
 
 
-# @app.get("/scoreboard")
-# async def root():
-#     return scoreboard.get_scoreboard().to_dict(orient="records")
+@app.get("/scoreboard")
+async def root():
+    return scoreboard.create_json_response()
 
 
 # def get_players():
@@ -40,5 +40,5 @@ scoreboard = StatsCalculator(parser, stratefu)
 # print(f"Runtime test2: {end_time - start_time:.2f} seconds")
 
 
-with open("teste.json", "w") as f:
-    f.write(scoreboard.create_json_response())
+# with open("teste.json", "w") as f:
+#     f.write(scoreboard.create_json_response())

@@ -53,7 +53,7 @@ class StatsCalculator:
         self.__parser = parser
         self.__platform = platform
         self.total_rounds = self.get_total_rounds()
-        self.__round_intervals: List[Tuple[int, int]] = s4elf.__precompute_round_intervals()
+        self.__round_intervals: List[Tuple[int, int]] = self.__precompute_round_intervals()
         self.player = self.get_players()
         # self.final_score = self.get_final_score() TODO
 
@@ -349,7 +349,7 @@ class StatsCalculator:
         for player in scoreboard_json:
             player["round_first_kill"] = first_kill.get(str(player["steamid"]), None)
             player["round_first_death"] = first_death.get(str(player["steamid"]), None)
-        return json.dumps(scoreboard_json)
+        return scoreboard_json
 
 
 if __name__ == "__main__":
