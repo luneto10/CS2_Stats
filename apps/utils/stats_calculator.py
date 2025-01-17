@@ -3,7 +3,7 @@ from demoparser2 import DemoParser
 from functools import lru_cache
 from pprint import pprint
 import numpy as np
-from typing import Any, Dict, List, Sequence, Union, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Union, Tuple
 import pandas as pd
 
 from utils.interface.parserInterface import ParserInterface
@@ -53,7 +53,9 @@ class StatsCalculator:
         self.__parser = parser
         self.__platform = platform
         self.total_rounds = self.get_total_rounds()
-        self.__round_intervals: List[Tuple[int, int]] = self.__precompute_round_intervals()
+        self.__round_intervals: List[Tuple[int, int]] = (
+            self.__precompute_round_intervals()
+        )
         self.player = self.get_players()
         # self.final_score = self.get_final_score() TODO
 
@@ -71,7 +73,9 @@ class StatsCalculator:
         return round_intervals.tolist()[1:]
 
     @lru_cache
-    def __get_tick_for_round(self, round_info: Union[str, int]) -> Tuple[int, int]:
+    def __get_tick_for_round(
+        self, round_info: Union[str, int]
+    ) -> Tuple[Any, str | int]:
         """
         Retrieve the tick for a specified round.
 
@@ -185,8 +189,8 @@ class StatsCalculator:
 
     def get_scoreboard(
         self,
-        player_steam_id: Sequence[str] = None,
-        round_info: Union[str, int] = "final",
+        player_steam_id: Optional[Sequence[str]] = None,
+        round_info: str | int = "final",
     ) -> pd.DataFrame:
         """
         Retrieve the scoreboard for a specified round.
@@ -234,7 +238,11 @@ class StatsCalculator:
 
         return scoreboard_df
 
-    def get_first_kills_deaths(self, total_rounds_at_moment: int, to_dict: bool = False) -> Dict[str, Any]:
+    def get_first_kills_deaths(
+        self, total_rounds_at_moment: int, to_dict: bool = False
+    ) -> Union[
+        Tuple[Dict[str, Any], Dict[str, Any]], Tuple[pd.DataFrame, pd.DataFrame]
+    ]:
         """
         Retrieve a dictionary of the first kills and deaths for each player in the demo.
 
@@ -258,11 +266,11 @@ class StatsCalculator:
         df = df[df["tick"] >= self.__round_intervals[0][0]]
 
         # Initialize data storage
-        round_first_kill = defaultdict(
+        round_first_kill: Dict[str, Any] = defaultdict(
             lambda: {"attacker_name": "", "rounds": [], "amount": 0, "killed": []}
         )
-        
-        round_first_death = defaultdict(
+
+        round_first_death: Dict[str, Any] = defaultdict(
             lambda: {"killed_name": "", "rounds": [], "amount": 0, "killer": []}
         )
 
@@ -275,7 +283,7 @@ class StatsCalculator:
 
             if round_df.empty:
                 continue
-            
+
             first_kill = round_df.nsmallest(1, "tick")[
                 ["attacker_name", "attacker_steamid", "user_steamid", "user_name"]
             ].values[0]
@@ -286,7 +294,7 @@ class StatsCalculator:
             round_first_kill[attacker_id]["killed"].append(first_kill[2])
             round_first_kill[attacker_id]["amount"] += 1
             round_first_kill[attacker_id]["attacker_name"] = first_kill[0]
-            
+
             first_death_killed_id = first_kill[2]
             round_first_death[first_death_killed_id]["rounds"].append(round_number + 1)
             round_first_death[first_death_killed_id]["amount"] += 1
@@ -298,7 +306,9 @@ class StatsCalculator:
         # result_df.index.name = "attacker_steamid"
         if to_dict:
             return round_first_kill, round_first_death
-        return pd.DataFrame.from_dict(round_first_kill, orient="index"), pd.DataFrame.from_dict(round_first_death, orient="index")
+        return pd.DataFrame.from_dict(
+            round_first_kill, orient="index"
+        ), pd.DataFrame.from_dict(round_first_death, orient="index")
 
     def get_players(self) -> Dict[str, str]:
         """
@@ -319,10 +329,9 @@ class StatsCalculator:
 
     def create_json_response(
         self,
-        players_steam_id: Sequence[str] = None,
-        round_info: Union[str, int] = "final",
+        players_steam_id: Optional[Sequence[str]] = None,
+        round_info: Optional[Union[str, int]] = "final",
     ) -> List[Dict[str, Any]]:
-
         """
         Create a JSON response containing scoreboard details and first kill information
         for specified players or all players at a given round.
@@ -343,8 +352,13 @@ class StatsCalculator:
             including details of the first kill for each round.
         """
 
-        scoreboard_json = self.get_scoreboard(player_steam_id=players_steam_id, round_info=round_info).to_dict(orient="records")
-        first_kill, first_death = self.get_first_kills_deaths(total_rounds_at_moment=scoreboard_json[0]["round"], to_dict=True)
+        scoreboard_json = self.get_scoreboard(
+            player_steam_id=players_steam_id, round_info=round_info
+        ).to_dict(orient="records")
+        
+        first_kill, first_death = self.get_first_kills_deaths(
+            total_rounds_at_moment=scoreboard_json[0]["round"], to_dict=True
+        )
 
         for player in scoreboard_json:
             player["round_first_kill"] = first_kill.get(str(player["steamid"]), None)
