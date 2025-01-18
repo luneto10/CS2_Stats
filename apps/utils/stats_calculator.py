@@ -327,43 +327,42 @@ class StatsCalculator:
             .to_dict()
         )
 
+    def get_scoreboard_json(self, players_steam_id: List[str], round_info):
+        """Returns scoreboard as a list of dicts or an empty list."""
+        df = self.get_scoreboard(
+            player_steam_id=players_steam_id,
+            round_info=round_info
+        )
+        return df.to_dict(orient="records") if not df.empty else []
+
+    def get_enriched_scoreboard_json(self, scoreboard_records: Dict[str, Any]):
+        """Inject first-kill/death info into an existing scoreboard JSON list."""
+        if not scoreboard_records:
+            return scoreboard_records
+
+        total_rounds = scoreboard_records[0].get("round")
+        if not total_rounds:
+            return scoreboard_records
+
+        first_kills, first_deaths = self.get_first_kills_deaths(
+            total_rounds_at_moment=total_rounds, to_dict=True
+        )
+
+        for player in scoreboard_records:
+            steam_id_str = str(player.get("steamid"))
+            player["round_first_kill"] = first_kills.get(steam_id_str)
+            player["round_first_death"] = first_deaths.get(steam_id_str)
+        return scoreboard_records
+
     def create_json_response(
         self,
         players_steam_id: Optional[Sequence[str]] = None,
-        round_info: Optional[Union[str, int]] = "final",
+        round_info: Union[str, int] = "final",
     ) -> List[Dict[str, Any]]:
-        """
-        Create a JSON response containing scoreboard details and first kill information
-        for specified players or all players at a given round.
+        scoreboard_records = self.get_scoreboard_json(players_steam_id, round_info)
+        enriched_scoreboard = self.get_enriched_scoreboard_json(scoreboard_records)
+        return json.dumps(enriched_scoreboard)
 
-        Parameters:
-        -----------
-        players_steam_id : Sequence[str], optional
-            A list of player Steam IDs to filter the scoreboard data. If not provided,
-            data for all players is included.
-
-        round_info : Union[str, int], optional
-            Specifies the round to retrieve score data for. Defaults to "final".
-
-        Returns:
-        --------
-        List[Dict[str, Any]]:
-            A list of dictionaries, each representing a player's scoreboard data,
-            including details of the first kill for each round.
-        """
-
-        scoreboard_json = self.get_scoreboard(
-            player_steam_id=players_steam_id, round_info=round_info
-        ).to_dict(orient="records")
-        
-        first_kill, first_death = self.get_first_kills_deaths(
-            total_rounds_at_moment=scoreboard_json[0]["round"], to_dict=True
-        )
-
-        for player in scoreboard_json:
-            player["round_first_kill"] = first_kill.get(str(player["steamid"]), None)
-            player["round_first_death"] = first_death.get(str(player["steamid"]), None)
-        return scoreboard_json
 
 
 if __name__ == "__main__":
