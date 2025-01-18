@@ -327,7 +327,7 @@ class StatsCalculator:
             .to_dict()
         )
 
-    def get_scoreboard_json(self, players_steam_id: List[str], round_info):
+    def get_scoreboard_json(self, players_steam_id: List[str], round_info) -> Dict[str, Any]:
         """Returns scoreboard as a list of dicts or an empty list."""
         df = self.get_scoreboard(
             player_steam_id=players_steam_id,
@@ -335,7 +335,7 @@ class StatsCalculator:
         )
         return df.to_dict(orient="records") if not df.empty else []
 
-    def get_enriched_scoreboard_json(self, scoreboard_records: Dict[str, Any]):
+    def get_enriched_scoreboard_json(self, scoreboard_records: Dict[str, Any]) -> Dict[str, Any]:
         """Inject first-kill/death info into an existing scoreboard JSON list."""
         if not scoreboard_records:
             return scoreboard_records
@@ -358,7 +358,7 @@ class StatsCalculator:
         self,
         players_steam_id: Optional[Sequence[str]] = None,
         round_info: Union[str, int] = "final",
-    ) -> List[Dict[str, Any]]:
+    ) -> str:
         scoreboard_records = self.get_scoreboard_json(players_steam_id, round_info)
         enriched_scoreboard = self.get_enriched_scoreboard_json(scoreboard_records)
         return json.dumps(enriched_scoreboard)
