@@ -1,7 +1,6 @@
 from collections import defaultdict
 from demoparser2 import DemoParser
 from functools import lru_cache
-from pprint import pprint
 import numpy as np
 from typing import Any, Dict, List, Optional, Sequence, Union, Tuple
 import pandas as pd
@@ -57,7 +56,7 @@ class StatsCalculator:
         self.__round_intervals: List[Tuple[int, int]] = (
             self.__precompute_round_intervals()
         )
-        self.player = self.get_players()
+        self.players = self.get_players()
 
     def __precompute_round_intervals(self) -> List[Tuple[int, int]]:
         """
@@ -71,10 +70,10 @@ class StatsCalculator:
             .combine(df_end["tick"], lambda start, end: (start, end))
         )
         return round_intervals.tolist()[1:]
-    
+
     def get_event_by_name(self, event_name: str) -> pd.DataFrame:
         return self.__all_events.get(event_name)
-    
+
     @lru_cache
     def __get_tick_for_round(
         self, round_info: Union[str, int]
@@ -240,7 +239,7 @@ class StatsCalculator:
 
         return scoreboard_df
 
-    def get_first_kills_deaths(
+    def __get_first_kills_deaths(
         self, total_rounds_at_moment: int, to_dict: bool = False
     ) -> Union[
         Tuple[Dict[str, Any], Dict[str, Any]], Tuple[pd.DataFrame, pd.DataFrame]
@@ -283,29 +282,26 @@ class StatsCalculator:
                 & (df["tick"] <= self.__round_intervals[round_number][1])
             ]
 
-            if round_df.empty:
-                continue
+            if not round_df.empty:
+                first_kill = round_df.nsmallest(1, "tick")[
+                    ["attacker_name", "attacker_steamid", "user_steamid", "user_name"]
+                ].values[0]
 
-            first_kill = round_df.nsmallest(1, "tick")[
-                ["attacker_name", "attacker_steamid", "user_steamid", "user_name"]
-            ].values[0]
+                attacker_id = first_kill[1]
+                first_death_killed_id = first_kill[2]
 
-            attacker_id = first_kill[1]
+                round_first_kill[attacker_id]["rounds"].append(round_number + 1)
+                round_first_kill[attacker_id]["killed"].append(first_death_killed_id)
+                round_first_kill[attacker_id]["amount"] += 1
+                round_first_kill[attacker_id]["attacker_name"] = first_kill[0]
 
-            round_first_kill[attacker_id]["rounds"].append(round_number + 1)
-            round_first_kill[attacker_id]["killed"].append(int(first_kill[2]))
-            round_first_kill[attacker_id]["amount"] += 1
-            round_first_kill[attacker_id]["attacker_name"] = first_kill[0]
+                round_first_death[first_death_killed_id]["rounds"].append(
+                    round_number + 1
+                )
+                round_first_death[first_death_killed_id]["amount"] += 1
+                round_first_death[first_death_killed_id]["killed_name"] = first_kill[3]
+                round_first_death[first_death_killed_id]["killer"].append(attacker_id)
 
-            first_death_killed_id = first_kill[2]
-            round_first_death[first_death_killed_id]["rounds"].append(round_number + 1)
-            round_first_death[first_death_killed_id]["amount"] += 1
-            round_first_death[first_death_killed_id]["killed_name"] = first_kill[3]
-            round_first_death[first_death_killed_id]["killer"].append(int(attacker_id))
-
-        # Convert to DataFrame
-        # result_df = pd.DataFrame.from_dict(round_first_kill, orient="index")
-        # result_df.index.name = "attacker_steamid"
         if to_dict:
             return round_first_kill, round_first_death
         return pd.DataFrame.from_dict(
@@ -329,57 +325,46 @@ class StatsCalculator:
             .to_dict()
         )
 
-    def get_scoreboard_json(
-        self, players_steam_id: List[str] = None, round_info = "final"
+    def get_scoreboard_dict(
+        self, players_steam_id: List[str] = None, round_info="final"
     ) -> Dict[str, Any]:
         """Returns scoreboard as a list of dicts or an empty list."""
         df = self.get_scoreboard(
             player_steam_id=players_steam_id, round_info=round_info
-        )
-        return df.to_dict(orient="records") if not df.empty else []
+        ).set_index("steamid")
+        return df.to_dict(orient="index") if not df.empty else []
 
-    def get_enriched_scoreboard_json(
+    def get_enriched_scoreboard_dict(
         self, scoreboard_records: Dict[str, Any]
     ) -> Dict[str, Any]:
         """Inject first-kill/death info into an existing scoreboard JSON list."""
         if not scoreboard_records:
             return scoreboard_records
 
-        total_rounds = scoreboard_records[0].get("round")
+        total_rounds = list(scoreboard_records.values())[0]["round"]
         if not total_rounds:
             return scoreboard_records
 
-        first_kills, first_deaths = self.get_first_kills_deaths(
+        first_kills, first_deaths = self.__get_first_kills_deaths(
             total_rounds_at_moment=total_rounds, to_dict=True
         )
 
-        for player in scoreboard_records:
-            steam_id_str = str(player.get("steamid"))
-            player["round_first_kill"] = first_kills.get(steam_id_str)
-            player["round_first_death"] = first_deaths.get(steam_id_str)
+        for steam_id in scoreboard_records.keys():
+            player = scoreboard_records[steam_id]
+            steam_id = str(steam_id)
+            player["steamid"] = steam_id
+            player["round_first_kill"] = first_kills.get(steam_id)
+            player["round_first_death"] = first_deaths.get(steam_id)
         return scoreboard_records
 
-    def create_scoreboard_response(
+    def scoreboard_response(
         self,
         players_steam_id: Optional[Sequence[str]] = None,
         round_info: Union[str, int] = "final",
-        to_json: bool = False
+        to_json: bool = False,
     ) -> str:
-        
-        scoreboard_records = self.get_scoreboard_json(players_steam_id, round_info)
-        enriched_scoreboard = self.get_enriched_scoreboard_json(scoreboard_records)
+        scoreboard_records = self.get_scoreboard_dict(players_steam_id, round_info)
+        enriched_scoreboard = self.get_enriched_scoreboard_dict(scoreboard_records)
         if to_json:
             return json.dumps(enriched_scoreboard)
-        return enriched_scoreboard 
-
-
-if __name__ == "__main__":
-    from pprint import pprint
-
-    base_path = "../../demos"
-    parser = DemoParser(
-        "/Users/luneto10/Documents/Exploratory/CS2_Stats/demos/gc/pulin-gc.dem"
-    )
-    stratefu = GcPlatform(parser)
-    scoreboard = StatsCalculator(parser, stratefu)
-    # pprint(scoreboard.get_scoreboard(round_info=3)[2])
+        return enriched_scoreboard

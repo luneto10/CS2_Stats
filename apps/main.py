@@ -25,9 +25,11 @@ stratefu = GcPlatform(parser)
 scoreboard = StatsCalculator(parser, stratefu)
 
 
-# @app.get("/scoreboard")
-# async def root():
-#     return scoreboard.create_json_response()
+@app.get("/scoreboard")
+async def root():
+    return scoreboard.scoreboard_response()
+
+
 end = time.time()
 print(f"Runtime innitializate: {end - start:.2f} seconds")
 
@@ -40,8 +42,11 @@ print(f"Runtime innitializate: {end - start:.2f} seconds")
 # end_time = time.time()
 # print(f"Runtime test2: {end_time - start_time:.2f} seconds")
 
-start = time.time()
-pprint(scoreboard.get_scoreboard_json())
+
+with open(
+    "/Users/luneto10/Documents/Exploratory/CS2_Stats/demos/output/teste.json", "w"
+) as f:
+    f.write(scoreboard.scoreboard_response(to_json=True))
 
 end = time.time()
 
