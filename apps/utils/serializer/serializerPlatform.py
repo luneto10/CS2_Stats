@@ -5,7 +5,7 @@ import pandas as pd
 
 class SerializerPlatform(ABC):
     @abstractmethod
-    def get_total_rounds(self) -> int:
+    def get_total_rounds(self, all_events) -> int:
         """
         Retrieve the total number of rounds played for the given platform.
 
@@ -17,7 +17,7 @@ class SerializerPlatform(ABC):
         pass
 
     @abstractmethod
-    def get_ticks(self) -> Tuple[pd.Series, int]:
+    def get_ticks(self, all_events) -> Tuple[pd.Series, int]:
         """
         Retrieve the ticks for the rounds and the total number of rounds.
 

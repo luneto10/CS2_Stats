@@ -8,7 +8,7 @@ class GcPlatform(SerializerPlatform):
     def __init__(self, parser: DemoParser) -> None:
         self.parser = parser
 
-    def get_total_rounds(self) -> int:
+    def get_total_rounds(self, all_events) -> int:
         """
         Retrieve the total number of rounds played for the GamersClub.
 
@@ -18,14 +18,14 @@ class GcPlatform(SerializerPlatform):
         """
         return (
             len(
-                self.parser.parse_event("round_officially_ended")[
+                all_events.get("round_officially_ended")[
                     "tick"
                 ].drop_duplicates()
             )
             - 1
         )
 
-    def get_ticks(self) -> Tuple[pd.Series, int]:
+    def get_ticks(self, all_events) -> Tuple[pd.Series, int]:
         """
         Retrieve the ticks for the rounds and the total number of rounds.
 
@@ -43,5 +43,5 @@ class GcPlatform(SerializerPlatform):
         - The `len(events) - 1` adjustment ensures the total rounds match the expected indexing logic.
         """
         # Get the tick corresponding to `round_info`
-        events = self.parser.parse_event("round_end")["tick"]
+        events = all_events.get("round_end")["tick"]
         return events, len(events) - 1

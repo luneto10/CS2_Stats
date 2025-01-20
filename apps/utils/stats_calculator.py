@@ -100,7 +100,7 @@ class StatsCalculator:
         ValueError:
             If `round_info` is invalid or exceeds the maximum round.
         """
-        events, max_round = self.__platform.get_ticks()
+        events, max_round = self.__platform.get_ticks(self.__all_events)
         special_rounds = {"half_time": 12, "final": max_round}
 
         if isinstance(round_info, str):
@@ -126,7 +126,7 @@ class StatsCalculator:
         int
             The total number of rounds played.
         """
-        return self.__platform.get_total_rounds()
+        return self.__platform.get_total_rounds(self.__all_events)
 
     def __calculate_metrics(self, df: pd.DataFrame, actual_rounds: int) -> pd.DataFrame:
         """
@@ -293,7 +293,7 @@ class StatsCalculator:
             attacker_id = first_kill[1]
 
             round_first_kill[attacker_id]["rounds"].append(round_number + 1)
-            round_first_kill[attacker_id]["killed"].append(first_kill[2])
+            round_first_kill[attacker_id]["killed"].append(int(first_kill[2]))
             round_first_kill[attacker_id]["amount"] += 1
             round_first_kill[attacker_id]["attacker_name"] = first_kill[0]
 
@@ -301,7 +301,7 @@ class StatsCalculator:
             round_first_death[first_death_killed_id]["rounds"].append(round_number + 1)
             round_first_death[first_death_killed_id]["amount"] += 1
             round_first_death[first_death_killed_id]["killed_name"] = first_kill[3]
-            round_first_death[first_death_killed_id]["killer"].append(attacker_id)
+            round_first_death[first_death_killed_id]["killer"].append(int(attacker_id))
 
         # Convert to DataFrame
         # result_df = pd.DataFrame.from_dict(round_first_kill, orient="index")
@@ -359,14 +359,18 @@ class StatsCalculator:
             player["round_first_death"] = first_deaths.get(steam_id_str)
         return scoreboard_records
 
-    def create_json_response(
+    def create_scoreboard_response(
         self,
         players_steam_id: Optional[Sequence[str]] = None,
         round_info: Union[str, int] = "final",
+        to_json: bool = False
     ) -> str:
+        
         scoreboard_records = self.get_scoreboard_json(players_steam_id, round_info)
         enriched_scoreboard = self.get_enriched_scoreboard_json(scoreboard_records)
-        return json.dumps(enriched_scoreboard)
+        if to_json:
+            return json.dumps(enriched_scoreboard)
+        return enriched_scoreboard 
 
 
 if __name__ == "__main__":

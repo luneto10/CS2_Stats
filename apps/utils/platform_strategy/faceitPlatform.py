@@ -8,7 +8,7 @@ class FaceitPlatform(SerializerPlatform):
     def __init__(self, parser: DemoParser) -> None:
         self.parser = parser
 
-    def get_total_rounds(self) -> int:
+    def get_total_rounds(self, all_events) -> int:
         """
         Retrieve the total number of rounds played for the Faceit.
 
@@ -19,14 +19,14 @@ class FaceitPlatform(SerializerPlatform):
         """
         return (
             len(
-                self.parser.parse_event("round_officially_ended")[
+                all_events.get("round_officially_ended")[
                     "tick"
                 ].drop_duplicates()
             )
             + 1
         )
 
-    def get_ticks(self) -> Tuple[pd.Series, int]:
+    def get_ticks(self, all_events) -> Tuple[pd.Series, int]:
         """
         Retrieve the ticks for all rounds and the total number of rounds.
 
@@ -45,8 +45,8 @@ class FaceitPlatform(SerializerPlatform):
         - The "round_end" event contributes the final tick to ensure all rounds are accounted for.
         - The index of the returned Series starts from 1 to match round numbering conventions.
         """
-        last_tick = self.parser.parse_event("round_end")["tick"].max()
-        round_ended = self.parser.parse_event(
+        last_tick = all_events.get("round_end")["tick"].max()
+        round_ended = all_events.get(
             "round_officially_ended"
         ).drop_duplicates()
 
