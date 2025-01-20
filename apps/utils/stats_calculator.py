@@ -52,26 +52,29 @@ class StatsCalculator:
         """
         self.__parser = parser
         self.__platform = platform
+        self.__all_events = dict(parser.parse_events(["all"]))
         self.total_rounds = self.get_total_rounds()
         self.__round_intervals: List[Tuple[int, int]] = (
             self.__precompute_round_intervals()
         )
         self.player = self.get_players()
-        # self.final_score = self.get_final_score() TODO
 
     def __precompute_round_intervals(self) -> List[Tuple[int, int]]:
         """
         Precompute the start and end ticks for all rounds for efficient querying.
         """
-        df_start = self.__parser.parse_event("round_start")
-        df_end = self.__parser.parse_event("round_end")
+        df_start = self.get_event_by_name("round_start")
+        df_end = self.get_event_by_name("round_end")
         round_intervals = (
             df_start.groupby("round")["tick"]
             .max()
             .combine(df_end["tick"], lambda start, end: (start, end))
         )
         return round_intervals.tolist()[1:]
-
+    
+    def get_event_by_name(self, event_name: str) -> pd.DataFrame:
+        return self.__all_events.get(event_name)
+    
     @lru_cache
     def __get_tick_for_round(
         self, round_info: Union[str, int]
@@ -226,7 +229,6 @@ class StatsCalculator:
             "enemies_flashed_total",
             "utility_damage_total",
         ]
-
         # Parse the specified tick
         scoreboard_df = self.__parser.parse_ticks(fields, ticks=[tick])
 
@@ -260,7 +262,7 @@ class StatsCalculator:
                 - 'first_deaths': A dictionary with the Steam IDs of the killed players as keys
                     and a dictionary with the keys 'killed_name', 'rounds', 'amount', and 'killer' as values.
         """
-        df = self.__parser.parse_event("player_death")
+        df = self.get_event_by_name("player_death")
 
         # Filter valid ticks
         df = df[df["tick"] >= self.__round_intervals[0][0]]
@@ -320,22 +322,25 @@ class StatsCalculator:
             A dictionary with Steam IDs as keys and player names as values.
         """
         return (
-            self.__parser.parse_event("player_team")
+            self.get_event_by_name("player_team")
             .drop_duplicates("user_name")
             .dropna()
             .set_index("user_steamid")["user_name"]
             .to_dict()
         )
 
-    def get_scoreboard_json(self, players_steam_id: List[str], round_info) -> Dict[str, Any]:
+    def get_scoreboard_json(
+        self, players_steam_id: List[str] = None, round_info = "final"
+    ) -> Dict[str, Any]:
         """Returns scoreboard as a list of dicts or an empty list."""
         df = self.get_scoreboard(
-            player_steam_id=players_steam_id,
-            round_info=round_info
+            player_steam_id=players_steam_id, round_info=round_info
         )
         return df.to_dict(orient="records") if not df.empty else []
 
-    def get_enriched_scoreboard_json(self, scoreboard_records: Dict[str, Any]) -> Dict[str, Any]:
+    def get_enriched_scoreboard_json(
+        self, scoreboard_records: Dict[str, Any]
+    ) -> Dict[str, Any]:
         """Inject first-kill/death info into an existing scoreboard JSON list."""
         if not scoreboard_records:
             return scoreboard_records
@@ -362,7 +367,6 @@ class StatsCalculator:
         scoreboard_records = self.get_scoreboard_json(players_steam_id, round_info)
         enriched_scoreboard = self.get_enriched_scoreboard_json(scoreboard_records)
         return json.dumps(enriched_scoreboard)
-
 
 
 if __name__ == "__main__":
