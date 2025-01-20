@@ -1,9 +1,11 @@
+from typing import List, Optional
 from demoparser2 import DemoParser
 import pandas as pd
 from pprint import pprint
 import numpy as np
 import time
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
+import json
 
 # Now you can import the module
 from utils.platform_strategy.gcPlatform import GcPlatform
@@ -26,8 +28,22 @@ scoreboard = StatsCalculator(parser, stratefu)
 
 
 @app.get("/scoreboard")
-async def root():
-    return scoreboard.scoreboard_response()
+def scoreboard_multiple(
+    steam_ids: Optional[List[int]] = Query(None, description="List of Steam IDs")
+):
+    """
+    If the user calls /scoreboard?steam_ids=111&steam_ids=222
+    steam_ids will be [111, 222].
+    If no parameter is provided, steam_ids will be None.
+    """
+    return scoreboard.scoreboard_response(players_steam_id=steam_ids)
+
+@app.get("/scoreboard/{steamid}")
+def scoreboard_single(steamid: int):
+    """
+    Handle a single ID passed in the path, e.g. /scoreboard/111
+    """
+    return scoreboard.scoreboard_response(players_steam_id=[steamid])
 
 
 end = time.time()
@@ -46,8 +62,8 @@ print(f"Runtime innitializate: {end - start:.2f} seconds")
 with open(
     "/Users/luneto10/Documents/Exploratory/CS2_Stats/demos/output/teste.json", "w"
 ) as f:
-    f.write(scoreboard.scoreboard_response(to_json=True))
+    f.write(json.dumps(scoreboard.scoreboard_response()))
 
-end = time.time()
+end = time.time()                  
 
 print(f"Runtime functions: {end - start:.2f} seconds")
